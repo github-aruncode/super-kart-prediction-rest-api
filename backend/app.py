@@ -30,36 +30,47 @@ def predict_rental_price():
     # Get the JSON data from the request body
     property_data = request.get_json()
 
-    # Extract relevant features from the JSON data
+
+
+    # Extract relevant features from the JSON data and map them to the model's expected input format
     sample = {
         'Product_Weight': property_data['Product_Weight'],
         'Product_Allocated_Area': property_data['Product_Allocated_Area'],
         'Product_MRP': property_data['Product_MRP'],
-        'Store_Establishment_Year': property_data['Store_Establishment_Year'],
+        'Store_Establishment_Year': property_data['Store_Age_Years'],
         'Product_Sugar_Content': property_data['Product_Sugar_Content'],
-        'Product_Type': property_data['Product_Type'],
+        'Product_Type': property_data['Product_Type_Category'],
         'Store_Size': property_data['Store_Size'],
         'Store_Location_City_Type': property_data['Store_Location_City_Type'],
         'Store_Type': property_data['Store_Type']
         
     }
 
+    print('sample', sample)
+
     # Convert the extracted data into a Pandas DataFrame
     input_data = pd.DataFrame([sample])
 
-    # Make prediction (get log_price)
-    predicted_log_price = model.predict(input_data)[0]
+    model_resp = model.predict(input_data)
 
-    # Calculate actual price
-    predicted_price = np.exp(predicted_log_price)
+    print('model_resp',model_resp)
 
-    # Convert predicted_price to Python float
-    predicted_price = round(float(predicted_price), 2)
-    # The conversion above is needed as we convert the model prediction (log price) to actual price using np.exp, which returns predictions as NumPy float32 values.
-    # When we send this value directly within a JSON response, Flask's jsonify function encounters a datatype error
+    # Make prediction get retrive the precicted price from the model's response
+    predicted_price = model.predict(input_data)[0]
+    
+
+    print('predicted_price',predicted_price)
+
+    # # Calculate actual price
+    # predicted_price = np.exp(predicted_log_price)
+
+    # # Convert predicted_price to Python float
+    # predicted_price = round(float(predicted_price), 2)
+    # # The conversion above is needed as we convert the model prediction (log price) to actual price using np.exp, which returns predictions as NumPy float32 values.
+    # # When we send this value directly within a JSON response, Flask's jsonify function encounters a datatype error
 
     # Return the actual price
-    return jsonify({'Predicted Price (in dollars)': predicted_price})
+    return jsonify({'Prediction': predicted_price})
 
 
 # Define an endpoint for batch prediction (POST request)
@@ -76,15 +87,52 @@ def predict_rental_price_batch():
     # Read the CSV file into a Pandas DataFrame
     input_data = pd.read_csv(file)
 
-    # Make predictions for all properties in the DataFrame (get log_prices)
-    predicted_log_prices = model.predict(input_data).tolist()
+    # Rename columns to match the model's expected input format
+    batch_dataset_copy = input_data.rename(columns={
+        'Store_Age_Years': 'Store_Establishment_Year',
+        'Product_Type_Category': 'Product_Type'
+    })
+
+    #extract Product_Id_char column from the input_data DataFrame
+    product_ids = input_data['Product_Id_char'].tolist()
+
+    # Drop 'Product_Id_char' as it is not a feature used by the model
+    batch_dataset_copy = batch_dataset_copy.drop(columns=['Product_Id_char'])
+
+    # Define the expected order of columns for the model
+    expected_columns = [
+        'Product_Weight',
+        'Product_Allocated_Area',
+        'Product_MRP',
+        'Store_Establishment_Year',
+        'Product_Sugar_Content',
+        'Product_Type',
+        'Store_Size',
+        'Store_Location_City_Type',
+        'Store_Type'
+    ]
+
+    # Reorder the columns in batch_dataset_copy to match the model's input order
+    batch_dataset_copy = batch_dataset_copy[expected_columns]
+
+    
+    # Make predictions for all products in the DataFrame
+    predicted_prices = model.predict(batch_dataset_copy).tolist()
+
+    #Round the predicted prices to 2 decimal places
+    rounded_predicted_prices = [round(price, 2) for price in predicted_prices]
+    
+    # To display all product_id and predicted_price pairs, even with duplicate product_ids,
+    # we can create a list of tuples.
+    output_dict = dict(zip(product_ids, rounded_predicted_prices)) 
 
     # Calculate actual prices
-    predicted_prices = [round(float(np.exp(log_price)), 2) for log_price in predicted_log_prices]
+    # predicted_prices = [round(float(np.exp(log_price)), 2) for log_price in predicted_log_prices]
 
     # Create a dictionary of predictions with property IDs as keys
-    property_ids = input_data['id'].tolist()  # Assuming 'id' is the property ID column
-    output_dict = dict(zip(property_ids, predicted_prices))  # Use actual prices
+    # property_ids = input_data['id'].tolist()  # Assuming 'id' is the property ID column
+    # output_dict = dict(zip(property_ids, predicted_prices))  # Use actual prices
+    
 
     # Return the predictions dictionary as a JSON response
     return output_dict

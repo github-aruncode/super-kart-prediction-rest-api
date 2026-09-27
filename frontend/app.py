@@ -43,8 +43,9 @@ input_data = pd.DataFrame([{
 if st.button("Predict", type="primary"):
     response = requests.post(f"{BACKEND_URL}/v1/predict", json=input_data.to_dict(orient='records')[0])  # Send data to Flask API
     if response.status_code == 200:
-        prediction = response.json()['Predicted Price (in dollars)']
-        st.success(f"Predicted Rental Price (in dollars): {prediction}")
+        prediction = response.text
+        # prediction = response.json()['Predicted Price (in dollars)']
+        st.success(f"Predicted Response form API: {prediction}")
     else:
         st.error("Unable to connect to the prediction API.")
 
