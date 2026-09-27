@@ -124,7 +124,7 @@ def predict_rental_price_batch():
     
     # To display all product_id and predicted_price pairs, even with duplicate product_ids,
     # we can create a list of tuples.
-    output_dict = dict(zip(product_ids, rounded_predicted_prices)) 
+    output_dict = list(zip(product_ids, rounded_predicted_prices)) 
 
     # Calculate actual prices
     # predicted_prices = [round(float(np.exp(log_price)), 2) for log_price in predicted_log_prices]
