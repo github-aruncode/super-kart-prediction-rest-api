@@ -1,9 +1,11 @@
+import os
+
 import streamlit as st
 import pandas as pd
 import requests
 
 # Base URL of the Flask backend
-BACKEND_URL = "http://localhost:7860"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:7860").rstrip("/")
 
 # Set the title of the Streamlit app
 st.title("Super Kart Price Prediction")
@@ -41,14 +43,17 @@ input_data = pd.DataFrame([{
 
 # Make prediction when the "Predict" button is clicked
 if st.button("Predict", type="primary"):
-    response = requests.post(f"{BACKEND_URL}/v1/predict", json=input_data.to_dict(orient='records')[0])  # Send data to Flask API
-    if response.status_code == 200:
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/v1/predict",
+            json=input_data.to_dict(orient='records')[0],
+            timeout=30,
+        )
+        response.raise_for_status()
         prediction = response.json()['Prediction']
         st.write(f"Predicted Price : {prediction}")
-    else:
-        print('response error', response.status.code)
-        print('response content:',response.text)
-        st.error("Unable to connect to the prediction API.")
+    except requests.RequestException as exc:
+        st.error(f"Prediction API request failed at {BACKEND_URL}: {exc}")
 
 # Section for batch prediction
 st.subheader("Batch Prediction")
@@ -59,12 +64,15 @@ uploaded_file = st.file_uploader("Upload CSV file for batch prediction", type=["
 # Make batch prediction when the "Predict Batch" button is clicked
 if uploaded_file is not None:
     if st.button("Predict Batch", type="primary"):
-        response = requests.post(f"{BACKEND_URL}/v1/predictbatch", files={"file": uploaded_file})  # Send file to Flask API
-        if response.status_code == 200:
+        try:
+            response = requests.post(
+                f"{BACKEND_URL}/v1/predictbatch",
+                files={"file": uploaded_file},
+                timeout=120,
+            )
+            response.raise_for_status()
             predictions = response.json()
             st.header("Batch predictions Results")
             st.write(predictions)  # Display the predictions
-        else:
-            print('response error', response.status.code)
-            print('response content:',response.text)
-            st.error("Unable to connect to the prediction API.")
+        except requests.RequestException as exc:
+            st.error(f"Batch prediction request failed at {BACKEND_URL}: {exc}")

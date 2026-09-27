@@ -4,6 +4,9 @@ FROM python:3.9-slim
 # Set the working directory inside the container to /app
 WORKDIR /app
 
+# The backend port is published on the Docker host in this setup.
+ENV BACKEND_URL=http://172.18.0.1:7860
+
 # Copy all files from the current directory on the host to the container's /app directory
 COPY . .
 
