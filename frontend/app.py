@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 
 # Base URL of the Flask backend
-BACKEND_URL = "http://backend:7860"
+BACKEND_URL = "http://localhost:7860"
 
 # Set the title of the Streamlit app
 st.title("Super Kart Price Prediction")
@@ -15,9 +15,9 @@ st.subheader("Online Prediction")
 Product_Weight = st.number_input("Product Weight", min_value=0.0, step=0.01, value=1.0)
 Product_Allocated_Area = st.number_input("Product Allocated Area", min_value=0.0, step=0.01, value=1.0)
 Product_MRP = st.number_input("Product MRP", min_value=0.0, step=1.0, value=1.0)
-Store_Establishment_Year = st.number_input("Store Establishment Year", min_value=0, step=1, value=1990)
+Store_Age_Years = st.number_input("Store Age Years", min_value=0, step=1, value=200)
 Product_Sugar_Content = st.selectbox("Product Sugar Content", ["Low Sugar", "Regular", "No Sugar", "reg"])
-Product_Type = st.selectbox("Product Type", ["Fruits and Vegetables ", "Snack Foods", "Frozen Foods", "Dairy", "Household", "Baking Goods",
+Product_Type_Category = st.selectbox("Product Type Category", ["Fruits and Vegetables ", "Snack Foods", "Frozen Foods", "Dairy", "Household", "Baking Goods",
                                              "Canned", "Health and Hygiene", "Meat", "Soft Drinks", "Breads", "Hard Drinks",
                                              "Others", "Starchy Foods", "Breakfast", "Seafood"])
 
@@ -31,9 +31,9 @@ input_data = pd.DataFrame([{
     'Product_Weight': Product_Weight,
     'Product_Allocated_Area': Product_Allocated_Area,
     'Product_MRP': Product_MRP,
-    'Store_Establishment_Year': Store_Establishment_Year,
+    'Store_Age_Years': Store_Age_Years,
     'Product_Sugar_Content': Product_Sugar_Content,
-    'Product_Type': Product_Type,
+    'Product_Type_Category': Product_Type_Category,
     'Store_Size': Store_Size,
     'Store_Location_City_Type': Store_Location_City_Type,
     'Store_Type': Store_Type
@@ -43,10 +43,11 @@ input_data = pd.DataFrame([{
 if st.button("Predict", type="primary"):
     response = requests.post(f"{BACKEND_URL}/v1/predict", json=input_data.to_dict(orient='records')[0])  # Send data to Flask API
     if response.status_code == 200:
-        prediction = response.text
-        # prediction = response.json()['Predicted Price (in dollars)']
-        st.success(f"Predicted Response form API: {prediction}")
+        prediction = response.json()['Prediction']
+        st.write(f"Predicted Price : {prediction}")
     else:
+        print('response error', response.status.code)
+        print('response content:',response.text)
         st.error("Unable to connect to the prediction API.")
 
 # Section for batch prediction
@@ -61,7 +62,9 @@ if uploaded_file is not None:
         response = requests.post(f"{BACKEND_URL}/v1/predictbatch", files={"file": uploaded_file})  # Send file to Flask API
         if response.status_code == 200:
             predictions = response.json()
-            st.success("Batch predictions completed!")
+            st.header("Batch predictions Results")
             st.write(predictions)  # Display the predictions
         else:
+            print('response error', response.status.code)
+            print('response content:',response.text)
             st.error("Unable to connect to the prediction API.")
